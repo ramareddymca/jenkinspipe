@@ -1,0 +1,56 @@
+pipeline {
+  environment {
+    registry = "ramareddymca/docker-test"
+    registryCredential = 'dockerhub-creds'
+    dockerImage = ''
+  }
+  tools {
+    maven 'M2_HOME'
+  }
+  agent any
+  stages {
+    stage('Code complie') {
+      steps {
+        git 'https://github.com/ramareddymca/mymicroservices.git'
+        sh 'mvn clean compile'
+      }
+    }
+    stage('code analysis') {
+      steps {
+         echo 'Code analysys completed ....'
+      }
+    }
+    stage('Package') {
+      steps{
+        script {
+            echo 'mvn packing'
+            sh  'mvn -B -DskipTests clean package'
+            echo 'packing completed ' 
+        }
+      }
+    }
+    stage('Building image') {
+      steps{
+        script {
+            echo 'docker image building'
+            dockerImage = docker.build registry + ":$BUILD_NUMBER"
+            echo 'docker image '
+        }
+      }
+    }
+    stage('Deploy Image') {
+      steps{
+        script {
+            docker.withRegistry( '', registryCredential ) {
+            dockerImage.push()
+          }
+        }
+      }
+    }
+    stage('Remove Unused docker image') {
+      steps{
+        sh "docker rmi $registry:$BUILD_NUMBER"
+      }
+    }
+  }
+}
